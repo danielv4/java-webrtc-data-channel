@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+</head>
+<body>
+<button id="button-sdp" >Add Sdp</button>
+<input onfocus="this.value=''" id="set-sdp" value="" />
+<button id="button-ice" >Add Ice</button>
+<input onfocus="this.value=''" id="set-ice" value="" />
+
+</body>
+<script type="text/javascript">
+var pcConfig = {
+	iceServers:[
+		{url:'stun:stun.l.google.com:19302'}
+	]
+};	
+
+var peerConnection = new RTCPeerConnection(pcConfig);
+
+peerConnection.ondatachannel = function (e) {
+    
+	var newChannel = e.channel;
+	console.log("ondatachannel");
+	console.log(newChannel.label);
+	receiveChannelCallback(newChannel);
+};
+
+
+peerConnection.addEventListener("iceconnectionstatechange", ev => {
+	console.log(ev);
+}, false);
+
+
+peerConnection.onicecandidate = function (event) {
+	if(event.candidate) {
+		console.log(btoa(event.candidate.candidate));
+		var div1 = document.createElement('div');
+		div1.textContent = "ice : " + btoa(event.candidate.candidate);
+		document.body.appendChild(div1);
+		console.log(event.candidate);
+	}
+};
+
+
+function onAnswerSuccess(sessionDescription) {
+	
+	peerConnection.setLocalDescription(sessionDescription);
+    console.log('createAnswer -> onAnswerSuccess');
+    console.log('Answer SDP:begin');
+	//console.log(btoa(sessionDescription.sdp));
+	
+	var div1 = document.createElement('div');
+	div1.textContent = "sdp answer : " + btoa(sessionDescription.sdp);
+	document.body.appendChild(div1);
+	
+    console.log('Answer SDP:end');
+}
+
+function onAnswerFailure() {
+	console.log("createAnswer -> onAnswerFailure");
+}
+
+
+document.getElementById("button-sdp").addEventListener("click", function() {
+
+	var set_sdp = document.getElementById('set-sdp').value;
+	if(set_sdp.length > 0) {
+	
+		var str = atob(set_sdp) + "\r\n";
+		var new_obj = {"type":"offer", "sdp":str};
+		console.log(new_obj);
+		var sdp = new RTCSessionDescription(new_obj);		
+		console.log(sdp);
+		peerConnection.setRemoteDescription(sdp);
+		peerConnection.createAnswer(onAnswerSuccess, onAnswerFailure, null);
+	}
+});
+
+document.getElementById("button-ice").addEventListener("click", function() {
+
+	var set_ice = document.getElementById('set-ice').value;
+	if(set_ice.length > 0) {
+		var str = atob(set_ice);
+		console.log(str);
+		var candidate = new RTCIceCandidate({"candidate":str, sdpMid: "data", sdpMLineIndex: 0});
+        peerConnection.addIceCandidate(candidate);
+	}
+});
+
+
+function receiveChannelCallback(channel) {
+
+    channel.onmessage = function (event) {
+	
+        console.log('received a message:', event.data);
+    };
+
+    channel.onopen = function () {
+        channel.send('first text message over RTP data ports');
+    };
+    channel.onclose = function (e) {
+        console.error(e);
+    };
+    channel.onerror = function (e) {
+        console.error(e);
+    };
+}
+
+</script>
+</html>
